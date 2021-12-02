@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+info() {
+    echo "[info]" "$@"
+}
+
+err() {
+    echo "[error]" "$@" 2>&1
+}
+
+die() {
+    local code="$1"
+    shift
+
+    err "$@"
+    exit "${code}"
+}
+
+__func_defered=()
+do_defer() {
+    for ((i=${#__func_defered[@]}-1;i>=0;i--)); do
+        if ! eval "${__func_defered[i]}"; then
+            die 1 "eval cmd failed, cmd: \"${__func_defered[i]}\""
+        fi
+    done
+}
+trap do_defer EXIT
+defer() {
+    __func_defered+=("$*")
+}
+
+opt_rom="./assets/Gigabyte.RTX3090.24576.210315_3.rom"
+
+opt_qemu="qemu-system-x86_64"
+qemu_opts=(
+    "-nodefaults"
+    "-vga" "none"
+    "-nographic"
+
+    "-machine" "q35,accel=kvm"
+    "-cpu" "host"
+    "-smp" "cores=32"
+    "-m" "48G"
+)
+
+do_anti_detection() {
+    qemu_opts+=(
+        "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,hpet=off,acpi=on"
+        "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
+
+        "-smbios" 'type=0,vendor=American Megatrends Inc.,version=0309,date=08/16/2021,release=5.17'
+        "-smbios" 'type=1,manufacturer=System manufacturer,product=System Product Name,version=System Version,serial=System Serial Number,sku=SKU,family=To be filled by O.E.M.'
+        "-smbios" 'type=2,manufacturer=ASUSTeK COMPUTER INC.,product=ROG STRIX X570-E GAMING WIFI II,version=Rev X.0x,serial=210890780700315,asset=Default string,location=Default string'
+        "-smbios" 'type=3,manufacturer=Default string,version=Default string,serial=Default string,asset=Default string,sku=Default string'
+        "-smbios" 'type=11,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string'
+
+        "-global" "kvm-pit.lost_tick_policy=delay"
+        "-global" "ICH9-LPC.disable_s3=1"
+        "-global" "ICH9-LPC.disable_s4=1"
+        "-global" "ICH9-LPC.noreboot=off"
+
+        "-sandbox" "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
+    )
+}
+
+do_pci_passthrough() {
+    local pci_ids=("$@")
+
+    for pci_id in "${pci_ids[@]}"; do
+        local virsh_id="pci_0000_$(echo ${pci_id} | tr ':.' '_')"
+        virsh nodedev-detach "${virsh_id}"
+        defer "virsh nodedev-reattach ${virsh_id}"
+    done
+}
+
+do_gpu_passthrough() {
+    local pci_ids=("01:00.0" "01:00.1")
+    do_pci_passthrough "${pci_ids[@]}"
+
+    qemu_opts+=(
+        "-device" "vfio-pci,host=${pci_ids[0]},x-vga=on,multifunction=on,romfile=${opt_rom}"
+        "-device" "vfio-pci,host=${pci_ids[1]}"
+    )
+}
+
+do_usb_passthrough() {
+    local pci_ids=("69:00.0")
+    do_pci_passthrough "${pci_ids[@]}"
+
+    qemu_opts+=(
+        "-device" "vfio-pci,host=${pci_ids[0]}"
+    )
+}
+
+do_main() {
+    if systemctl is-active --quiet display-manager.service; then
+        systemctl stop display-manager.service
+        while systemctl is-active --quiet display-manager.service; do
+            sleep 1
+        done
+        defer "systemctl start display-manager.service"
+    fi
+
+    systemd-inhibit --what=sleep --mode=block sleep infinity &
+    defer "kill $!"
+
+    do_anti_detection
+
+    do_gpu_passthrough
+    do_usb_passthrough
+
+    ${opt_qemu} "${qemu_opts[@]}" "$@"
+}
+
+main() {
+    while (($#)); do
+        case "$1" in
+            --qemu)
+                opt_qemu="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    do_main "$@"
+}
+
+main "$@"
+
