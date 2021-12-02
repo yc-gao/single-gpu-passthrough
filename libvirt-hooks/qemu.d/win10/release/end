@@ -1,0 +1,21 @@
+#!/bin/bash
+set -x
+
+object_name="$1"
+operation="$2"
+sub_operation="$3"
+extra_arg="$4"
+
+systemctl stop libvirt-nosleep@$object_name
+
+for dev in pci_0000_0a_00_0 pci_0000_0a_00_1; do
+    virsh nodedev-reattach $dev
+done
+
+echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/bind
+
+for vtc in /sys/class/vtconsole/vtcon*; do
+    echo 1 > $vtc/bind                   
+done
+
+systemctl start display-manager.service
