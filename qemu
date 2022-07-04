@@ -23,13 +23,15 @@ virsh nodedev-detach pci_0000_0e_00_3
 qemu_args=(
     -nodefaults
     -nographic
+    -display none
     -vga none
     -enable-kvm
     -cpu host,kvm=on
     -machine q35
     -smp 12,cores=6,threads=2
     -m 32G
-    -bios /usr/share/OVMF/OVMF_CODE.fd
+    -drive file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly
+    -boot menu=on
 )
 
 # gpu passthrough
