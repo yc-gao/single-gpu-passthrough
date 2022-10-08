@@ -53,8 +53,7 @@ qemu_args+=(
 # volumes setup
 qemu_args+=(
     -drive file=/dev/nvme1n1,cache=none,if=virtio
-    -drive file=/mnt/hdisk-lvol1/pool/win10.qcow,if=virtio
-    -cdrom /home/xundaoxd/Downloads/win10.iso
+    -cdrom ./win10.iso
 )
 
 taskset -c 0-5,12-17 qemu-system-x86_64 "${qemu_args[@]}" $@
@@ -72,3 +71,4 @@ for vtc in /sys/class/vtconsole/vtcon*; do
 done
 
 systemctl start display-manager.service
+
