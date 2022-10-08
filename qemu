@@ -18,7 +18,7 @@ echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
 virsh nodedev-detach pci_0000_0b_00_0
 virsh nodedev-detach pci_0000_0b_00_1
 # detach usb controller
-virsh nodedev-detach pci_0000_0e_00_3
+virsh nodedev-detach pci_0000_0d_00_3
 
 qemu_args=(
     -nodefaults
@@ -28,7 +28,7 @@ qemu_args=(
     -enable-kvm
     -cpu host,kvm=on
     -machine q35
-    -smp 12,cores=6,threads=2
+    -smp 12
     -m 32G
     -drive file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly
     -boot menu=on
@@ -42,7 +42,7 @@ qemu_args+=(
 
 # usb controller passthrough
 qemu_args+=(
-    -device vfio-pci,host=0e:00.3
+    -device vfio-pci,host=0d:00.3
 )
 
 # network setup
@@ -52,14 +52,14 @@ qemu_args+=(
 
 # volumes setup
 qemu_args+=(
-    -drive file=/dev/nvme1n1,cache=none,if=virtio
-    -cdrom ./win10.iso
+    -drive file=./win10.iso,media=cdrom
+    -drive file=/mnt/sdd-vol0/vm-pool/win10.qcow2,cache=none,if=virtio
 )
 
 taskset -c 0-5,12-17 qemu-system-x86_64 "${qemu_args[@]}" $@
 
 # reattach usb controller
-virsh nodedev-reattach pci_0000_0e_00_3
+virsh nodedev-reattach pci_0000_0d_00_3
 # reattach gpu
 virsh nodedev-reattach pci_0000_0b_00_0
 virsh nodedev-reattach pci_0000_0b_00_1
