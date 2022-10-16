@@ -13,12 +13,6 @@ if systemctl is-active --quiet display-manager.service ; then
     done
 fi
 
-for vtc in /sys/class/vtconsole/vtcon*; do
-    echo 0 > $vtc/bind
-done
-
-echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
-
 sleep 2
 
 systemctl start libvirt-nosleep@$object_name
