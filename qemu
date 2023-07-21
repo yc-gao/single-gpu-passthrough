@@ -12,6 +12,7 @@ exec() {
 }
 
 write_file() {
+    [[ ! -w $1 ]] && die "cannot write to $1"
     echo "$2" > "$1"
 }
 
@@ -22,7 +23,7 @@ fi
 if [[ $PPID != 1 ]]; then
     if which daemonize; then
         mkdir -p log
-        exec daemonize -v -o log/out.log -e log/err.log "$0" "$@"
+        exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$(realpath "$0")" "$@"
     fi
     die "please install daemonize: yay -S daemonize"
 fi
@@ -48,8 +49,10 @@ for vtc in /sys/class/vtconsole/vtcon*; do
     post_hooks+=("write_file $vtc/bind 1")
 done
 
-write_file /sys/bus/platform/drivers/efi-framebuffer/unbind efi-framebuffer.0
-post_hooks+=("write_file /sys/bus/platform/drivers/efi-framebuffer/bind efi-framebuffer.0")
+# efi unbind
+# not need on my compute
+# write_file /sys/bus/platform/drivers/efi-framebuffer/unbind efi-framebuffer.0
+# post_hooks+=("write_file /sys/bus/platform/drivers/efi-framebuffer/bind efi-framebuffer.0")
 
 # basic options
 qemu_args=(
@@ -61,7 +64,7 @@ qemu_args=(
     "-smp" "24"
     "-cpu" "host,kvm=off"
     "-m" "32G"
-    "-drive" "file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly"
+    "-drive" "file=/usr/share/OVMF/x64/OVMF_CODE.fd,if=pflash,format=raw,readonly=on"
     "-boot" "menu=on"
 )
 
@@ -74,27 +77,27 @@ qemu_args+=(
 )
 post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_0" "virsh nodedev-reattach pci_0000_0b_00_1")
 
-# usb controller passthrough
-# virsh nodedev-detach pci_0000_0d_00_3
-# qemu_args+=(
-#     -device vfio-pci,host=0d:00.3
-# )
-# post_hooks+=("virsh nodedev-reattach pci_0000_0d_00_3")
-
 # usb passthrough
-# qemu_args+=(
-#     "-device" "usb-host,vendorid=vendor,productid=product"
-# )
+qemu_args+=(
+    "-usb"
+    "-device" "qemu-xhci"
+    "-device" "usb-host,vendorid=0x05ac,productid=0x024f"   # keyboard
+    "-device" "usb-host,vendorid=0x046d,productid=0xc53f"   # mouse
+)
 
 # network setup
 qemu_args+=(
-    "-nic" "user,model=virtio-net-pci"
+    # "-nic" "user,model=virtio-net-pci"
+    "-nic" "user,model=e1000,mac=52:54:98:76:54:32"
 )
 
 # disk
-# qemu_args+=(
-#     "-drive" "file=file,if=virtio,media=disk,cache=none"
-# )
+qemu_args+=(
+    "-drive" "file=/dev/nvme1n1,if=virtio,media=disk,cache=none,format=raw"
+)
+
+systemd-inhibit --what=sleep --mode=block sleep infinity &
+post_hooks+=("kill $!")
 
 qemu-system-x86_64 "${qemu_args[@]}" "$@"
 
