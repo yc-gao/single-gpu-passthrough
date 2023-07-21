@@ -37,7 +37,7 @@ trap "run_post_hooks" EXIT
 
 if systemctl is-active --quiet display-manager.service; then
     systemctl stop display-manager.service
-    while systemctl is-active --quiet display-manager.service ; do
+    while systemctl is-active --quiet display-manager.service; do
         sleep 1
     done
     post_hooks+=("systemctl start display-manager.service")
