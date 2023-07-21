@@ -91,5 +91,10 @@ qemu_args+=(
     "-nic" "user,model=virtio-net-pci"
 )
 
+# disk
+# qemu_args+=(
+#     "-drive" "file=file,if=virtio,media=disk,cache=none"
+# )
+
 qemu-system-x86_64 "${qemu_args[@]}" "$@"
 
