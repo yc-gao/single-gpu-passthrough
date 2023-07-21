@@ -51,27 +51,33 @@ done
 write_file /sys/bus/platform/drivers/efi-framebuffer/unbind efi-framebuffer.0
 post_hooks+=("write_file /sys/bus/platform/drivers/efi-framebuffer/bind efi-framebuffer.0")
 
+# hugepages
+post_hooks+=("write_file /proc/sys/vm/nr_hugepages $(cat /proc/sys/vm/nr_hugepages)")
+write_file /proc/sys/vm/nr_hugepages $((32 * 1024 / 2))
+
 # basic options
 qemu_args=(
-    -nodefaults
-    -nographic
-    -display none
-    -vga none
-    -enable-kvm
-    -cpu host,kvm=off
-    -machine q35
-    -smp 24
-    -m 32G
-    -drive file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly
-    -boot menu=on
+    "-nodefaults"
+    "-nographic"
+    "-display" "none"
+    "-vga" "none"
+    "-enable-kvm"
+    "-cpu" "host,kvm=off"
+    "-machine" "q35"
+    "-smp" "24"
+    "-object" "memory-backend-file,id=pc.ram,size=32G,mem-path=/dev/hugepages,prealloc=on,share=on"
+    "-machine" "memory-backend=pc.ram"
+    "-m" "32G"
+    "-drive" "file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly"
+    "-boot" "menu=on"
 )
 
 # gpu passthrough
 virsh nodedev-detach pci_0000_0b_00_0
 virsh nodedev-detach pci_0000_0b_00_1
 qemu_args+=(
-    -device vfio-pci,host=0b:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom
-    -device vfio-pci,host=0b:00.1
+    "-device" "vfio-pci,host=0b:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
+    "-device" "vfio-pci,host=0b:00.1"
 )
 post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_0" "virsh nodedev-reattach pci_0000_0b_00_1")
 
@@ -84,7 +90,7 @@ post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_0" "virsh nodedev-reattach p
 
 # network setup
 qemu_args+=(
-    -nic user,model=virtio-net-pci
+    "-nic" "user,model=virtio-net-pci"
 )
 
 qemu-system-x86_64 "${qemu_args[@]}" "$@"
