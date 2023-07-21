@@ -1,25 +1,57 @@
 #!/bin/bash
 set -xe
 
-if systemctl is-active --quiet display-manager.service ; then
+die() {
+    echo "$@"
+    exit 1
+}
+
+exec() {
+    "$@"
+    exit 0
+}
+
+write_file() {
+    echo "$2" > "$1"
+}
+
+if [[ $UID != 0 ]]; then
+    die "must run as root"
+fi
+
+if [[ $PPID != 1 ]]; then
+    if which daemonize; then
+        mkdir -p log
+        exec daemonize -v -o log/out.log -e log/err.log "$0" "$@"
+    fi
+    die "please install daemonize: yay -S daemonize"
+fi
+
+post_hooks=()
+run_post_hooks() {
+    for ((i = ${#post_hooks[@]}; i >= 0; i--)); do
+        ${post_hooks[i]}
+    done
+}
+trap "run_post_hooks" EXIT
+
+if systemctl is-active --quiet display-manager.service; then
     systemctl stop display-manager.service
     while systemctl is-active --quiet display-manager.service ; do
         sleep 1
     done
+    post_hooks+=("systemctl start display-manager.service")
 fi
 
 for vtc in /sys/class/vtconsole/vtcon*; do
-    echo 0 > $vtc/bind
+    write_file "$vtc/bind" 0
+    post_hooks+=("write_file $vtc/bind 1")
 done
 
-echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
+write_file /sys/bus/platform/drivers/efi-framebuffer/unbind efi-framebuffer.0
+post_hooks+=("write_file /sys/bus/platform/drivers/efi-framebuffer/bind efi-framebuffer.0")
 
-# detach gpu
-virsh nodedev-detach pci_0000_0b_00_0
-virsh nodedev-detach pci_0000_0b_00_1
-# detach usb controller
-virsh nodedev-detach pci_0000_0d_00_3
-
+# basic options
 qemu_args=(
     -nodefaults
     -nographic
@@ -28,47 +60,32 @@ qemu_args=(
     -enable-kvm
     -cpu host,kvm=off
     -machine q35
-    -smp 12
+    -smp 24
     -m 32G
     -drive file=/usr/share/OVMF/OVMF_CODE.fd,if=pflash,format=raw,readonly
     -boot menu=on
 )
 
 # gpu passthrough
+virsh nodedev-detach pci_0000_0b_00_0
+virsh nodedev-detach pci_0000_0b_00_1
 qemu_args+=(
     -device vfio-pci,host=0b:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom
     -device vfio-pci,host=0b:00.1
 )
+post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_0" "virsh nodedev-reattach pci_0000_0b_00_1")
 
 # usb controller passthrough
-qemu_args+=(
-    -device vfio-pci,host=0d:00.3
-)
+# virsh nodedev-detach pci_0000_0d_00_3
+# qemu_args+=(
+#     -device vfio-pci,host=0d:00.3
+# )
+# post_hooks+=("virsh nodedev-reattach pci_0000_0d_00_3")
 
 # network setup
 qemu_args+=(
     -nic user,model=virtio-net-pci
 )
 
-# volumes setup
-qemu_args+=(
-    -drive file=./win10.iso,media=cdrom
-    -drive file=/mnt/sdd-vol0/vm-pool/win10.qcow2,cache=none,if=virtio
-)
-
-taskset -c 0-5,12-17 qemu-system-x86_64 "${qemu_args[@]}" $@
-
-# reattach usb controller
-virsh nodedev-reattach pci_0000_0d_00_3
-# reattach gpu
-virsh nodedev-reattach pci_0000_0b_00_0
-virsh nodedev-reattach pci_0000_0b_00_1
-
-echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/bind
-
-for vtc in /sys/class/vtconsole/vtcon*; do
-    echo 1 > $vtc/bind
-done
-
-systemctl start display-manager.service
+qemu-system-x86_64 "${qemu_args[@]}" "$@"
 
