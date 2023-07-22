@@ -62,7 +62,7 @@ qemu_args=(
     "-vga" "none"
     "-machine" "q35,accel=kvm"
     "-smp" "24"
-    "-cpu" "host,kvm=off"
+    "-cpu" "host,kvm=off,hv_relaxed,hv-vapic,hv-spinlocks=8191,hv-vendor-id=123456789123"
     "-m" "32G"
     "-drive" "file=/usr/share/OVMF/x64/OVMF_CODE.fd,if=pflash,format=raw,readonly=on"
     "-boot" "menu=on"
