@@ -60,11 +60,9 @@ qemu_args=(
     "-nographic"
     "-display" "none"
     "-vga" "none"
-    "-blockdev" '{"driver":"file","filename":"/usr/share/edk2-ovmf/x64/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}'
-    "-blockdev" '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}'
-    "-blockdev" '{"driver":"file","filename":"/var/lib/libvirt/qemu/nvram/win10_VARS.fd","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}'
-    "-blockdev" '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}'
-    "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format,hpet=off,acpi=on"
+    "-blockdev" '{"driver":"file","filename":"/usr/share/edk2-ovmf/x64/OVMF_CODE.fd","node-name":"pflash0-storage","auto-read-only":true,"discard":"unmap"}'
+    "-blockdev" '{"node-name":"pflash0-format","read-only":true,"driver":"raw","file":"pflash0-storage"}'
+    "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,pflash0=pflash0-format,hpet=off,acpi=on"
     "-smp" "24"
     "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
     "-m" "32G"
@@ -79,9 +77,9 @@ qemu_args=(
     "-global" "ICH9-LPC.disable_s3=1"
     "-global" "ICH9-LPC.disable_s4=1"
     "-global" "ICH9-LPC.noreboot=off"
+
     "-sandbox" "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
 
-    # "-drive" "file=/usr/share/OVMF/x64/OVMF_CODE.fd,if=pflash,format=raw,readonly=on"
     "-boot" "menu=on"
 )
 
