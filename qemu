@@ -84,7 +84,7 @@ qemu_args+=(
     "-device" "usb-host,vendorid=0x05ac,productid=0x024f"   # keyboard
     "-device" "usb-host,vendorid=0x046d,productid=0xc53f"   # mouse
     "-device" "usb-host,vendorid=0x045e,productid=0x028e"   # xbox360
-    "-device" "usb-host,vendorid=0x0e8d,productid=0x0608"   # bluetooth
+    "-device" "usb-host,vendorid=0x0bda,productid=0x8771"   # bluetooth
 )
 
 # network setup
