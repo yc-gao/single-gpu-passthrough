@@ -58,14 +58,21 @@ done
 qemu_args=(
     "-nodefaults"
     "-nographic"
-    "-display" "none"
     "-vga" "none"
-    "-blockdev" '{"driver":"file","filename":"/usr/share/edk2-ovmf/x64/OVMF_CODE.fd","node-name":"pflash0-storage","auto-read-only":true,"discard":"unmap"}'
-    "-blockdev" '{"node-name":"pflash0-format","read-only":true,"driver":"raw","file":"pflash0-storage"}'
-    "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,pflash0=pflash0-format,hpet=off,acpi=on"
+
+    "-machine" "pc-q35-7.1,accel=kvm"
+    "-cpu" "host"
     "-smp" "24"
-    "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
     "-m" "32G"
+
+    "-bios" "/usr/share/edk2/x64/OVMF_CODE.fd"
+    "-boot" "menu=on"
+)
+
+# anti detection
+qemu_args+=(
+    "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,hpet=off,acpi=on"
+    "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
 
     "-smbios" 'type=0,vendor=American Megatrends Inc.,version=0309,date=08/16/2021,release=5.17'
     "-smbios" 'type=1,manufacturer=System manufacturer,product=System Product Name,version=System Version,serial=System Serial Number,sku=SKU,family=To be filled by O.E.M.'
@@ -79,8 +86,6 @@ qemu_args=(
     "-global" "ICH9-LPC.noreboot=off"
 
     "-sandbox" "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
-
-    "-boot" "menu=on"
 )
 
 # gpu passthrough
