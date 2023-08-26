@@ -89,13 +89,13 @@ qemu_args+=(
 )
 
 # gpu passthrough
-virsh nodedev-detach pci_0000_0b_00_0
-post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_0")
-virsh nodedev-detach pci_0000_0b_00_1
-post_hooks+=("virsh nodedev-reattach pci_0000_0b_00_1")
+virsh nodedev-detach pci_0000_0a_00_0
+post_hooks+=("virsh nodedev-reattach pci_0000_0a_00_0")
+virsh nodedev-detach pci_0000_0a_00_1
+post_hooks+=("virsh nodedev-reattach pci_0000_0a_00_1")
 qemu_args+=(
-    "-device" "vfio-pci,host=0b:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
-    "-device" "vfio-pci,host=0b:00.1"
+    "-device" "vfio-pci,host=0a:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
+    "-device" "vfio-pci,host=0a:00.1"
 )
 
 # usb passthrough
