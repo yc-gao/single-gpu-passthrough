@@ -100,7 +100,6 @@ qemu_args+=(
 
 # usb passthrough
 qemu_args+=(
-    "-usb"
     "-device" "qemu-xhci"
     "-device" "usb-host,vendorid=0x05ac,productid=0x024f"   # keyboard
     "-device" "usb-host,vendorid=0x046d,productid=0xc53f"   # mouse
