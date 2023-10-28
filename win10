@@ -57,7 +57,7 @@ qemu_args=(
     "-machine" "pc-q35-7.1,accel=kvm"
     "-cpu" "host"
     "-smp" "32"
-    "-m" "8G"
+    "-m" "32G"
 
     "-bios" "/usr/share/edk2/x64/OVMF_CODE.fd"
     "-boot" "menu=on"
@@ -116,5 +116,5 @@ qemu_args+=(
 systemd-inhibit --what=sleep --mode=block sleep infinity &
 run_atexit "kill $!"
 
-timeout 120 qemu-system-x86_64 "${qemu_args[@]}" "$@"
+qemu-system-x86_64 "${qemu_args[@]}" "$@"
 
