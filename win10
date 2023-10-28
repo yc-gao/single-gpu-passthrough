@@ -1,58 +1,52 @@
 #!/bin/bash
 set -xe
 
-die() {
+err() {
     echo "$@"
     exit 1
 }
 
-exec() {
-    "$@"
-    exit 0
+do_run() {
+    if ! eval "$@"; then
+        err "WARNING: command failed \"$*\""
+    fi
 }
 
-write_file() {
-    [[ ! -w $1 ]] && die "cannot write to $1"
-    echo "$2" > "$1"
+post_hooks=()
+atexit() {
+    for ((i = ${#post_hooks[@]} - 1; i >= 0; i--)) {
+        do_run "${post_hooks[i]}"
+    }
+}
+trap atexit EXIT
+run_atexit() {
+    post_hooks+=("$*")
 }
 
 if [[ $UID != 0 ]]; then
-    die "must run as root"
+    exec sudo "$0" "$@"
 fi
 
 if [[ $PPID != 1 ]]; then
-    if which daemonize; then
-        mkdir -p log
-        exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$(realpath "$0")" "$@"
-    fi
-    die "please install daemonize: yay -S daemonize"
+    mkdir -p log
+    exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$PWD/$0" "$@"
 fi
-
-post_hooks=()
-run_post_hooks() {
-    for ((i = ${#post_hooks[@]} - 1; i >= 0; i--)); do
-        ${post_hooks[i]}
-    done
-}
-trap "run_post_hooks" EXIT
 
 if systemctl is-active --quiet display-manager.service; then
     systemctl stop display-manager.service
     while systemctl is-active --quiet display-manager.service; do
         sleep 1
     done
-    post_hooks+=("systemctl start display-manager.service")
+    run_atexit "systemctl start display-manager.service"
 fi
 
 for vtc in /sys/class/vtconsole/vtcon*; do
-    write_file "$vtc/bind" 0
-    post_hooks+=("write_file $vtc/bind 1")
+    echo 0 > "$vtc/bind"
+    run_atexit "echo 1 > $vtc/bind"
 done
 
-# efi unbind
-# not need on my compute
-# write_file /sys/bus/platform/drivers/efi-framebuffer/unbind efi-framebuffer.0
-# post_hooks+=("write_file /sys/bus/platform/drivers/efi-framebuffer/bind efi-framebuffer.0")
+# echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
+# run_atexit "echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/bind"
 
 # basic options
 qemu_args=(
@@ -62,8 +56,8 @@ qemu_args=(
 
     "-machine" "pc-q35-7.1,accel=kvm"
     "-cpu" "host"
-    "-smp" "24"
-    "-m" "32G"
+    "-smp" "32"
+    "-m" "8G"
 
     "-bios" "/usr/share/edk2/x64/OVMF_CODE.fd"
     "-boot" "menu=on"
@@ -89,13 +83,14 @@ qemu_args+=(
 )
 
 # gpu passthrough
-virsh nodedev-detach pci_0000_0a_00_0
-post_hooks+=("virsh nodedev-reattach pci_0000_0a_00_0")
-virsh nodedev-detach pci_0000_0a_00_1
-post_hooks+=("virsh nodedev-reattach pci_0000_0a_00_1")
+virsh nodedev-detach pci_0000_01_00_0
+run_atexit "virsh nodedev-reattach pci_0000_01_00_0"
+virsh nodedev-detach pci_0000_01_00_1
+run_atexit "virsh nodedev-reattach pci_0000_01_00_1"
+
 qemu_args+=(
-    "-device" "vfio-pci,host=0a:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
-    "-device" "vfio-pci,host=0a:00.1"
+    "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
+    "-device" "vfio-pci,host=01:00.1"
 )
 
 # usb passthrough
@@ -115,11 +110,11 @@ qemu_args+=(
 
 # disk
 qemu_args+=(
-    "-drive" "file=/dev/nvme0n1p3,if=virtio,media=disk,cache=none,format=raw"
+    "-drive" "file=/dev/nvme1n1p1,if=virtio,media=disk,cache=none,format=raw"
 )
 
 systemd-inhibit --what=sleep --mode=block sleep infinity &
-post_hooks+=("kill $!")
+run_atexit "kill $!"
 
-qemu-system-x86_64 "${qemu_args[@]}" "$@"
+timeout 120 qemu-system-x86_64 "${qemu_args[@]}" "$@"
 
