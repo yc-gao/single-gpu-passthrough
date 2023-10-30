@@ -48,6 +48,10 @@ done
 # echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
 # run_atexit "echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/bind"
 
+asset_dir="$PWD/assets"
+ovmf="/usr/share/edk2/x64/OVMF_CODE.fd"
+[[ -e ${asset_dir}/$(basename ${ovmf}) ]] && cp ${ovmf} "${asset_dir}/"
+
 # basic options
 qemu_args=(
     "-nodefaults"
@@ -59,7 +63,8 @@ qemu_args=(
     "-smp" "32"
     "-m" "32G"
 
-    "-bios" "/usr/share/edk2/x64/OVMF_CODE.fd"
+    "-drive" "if=pflash,format=raw,readonly=on,file=${ovmf}"
+    "-drive" "if=pflash,format=raw,file=${asset_dir}/$(basename ${ovmf})"
     "-boot" "menu=on"
 )
 
@@ -89,7 +94,7 @@ virsh nodedev-detach pci_0000_01_00_1
 run_atexit "virsh nodedev-reattach pci_0000_01_00_1"
 
 qemu_args+=(
-    "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=rom/Gigabyte.RTX3090.24576.210315_3.rom"
+    "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=${asset_dir}/Gigabyte.RTX3090.24576.210315_3.rom"
     "-device" "vfio-pci,host=01:00.1"
 )
 
@@ -109,9 +114,9 @@ qemu_args+=(
 )
 
 # disk
-qemu_args+=(
-    "-drive" "file=/dev/nvme1n1p1,if=virtio,media=disk,cache=none,format=raw"
-)
+# qemu_args+=(
+#     "-drive" "file=/dev/nvme1n1p1,if=virtio,media=disk,cache=none,format=raw"
+# )
 
 systemd-inhibit --what=sleep --mode=block sleep infinity &
 run_atexit "kill $!"
