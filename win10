@@ -114,9 +114,9 @@ qemu_args+=(
 )
 
 # disk
-# qemu_args+=(
-#     "-drive" "file=/dev/nvme1n1p1,if=virtio,media=disk,cache=none,format=raw"
-# )
+qemu_args+=(
+    "-drive" "file=${asset_dir}/win.raw,if=virtio,media=disk,cache=unsafe,format=raw"
+)
 
 systemd-inhibit --what=sleep --mode=block sleep infinity &
 run_atexit "kill $!"
