@@ -50,7 +50,6 @@ done
 
 asset_dir="$PWD/assets"
 ovmf="/usr/share/edk2/x64/OVMF_CODE.fd"
-[[ -e ${asset_dir}/$(basename ${ovmf}) ]] && cp ${ovmf} "${asset_dir}/"
 
 # basic options
 qemu_args=(
@@ -63,8 +62,7 @@ qemu_args=(
     "-smp" "32"
     "-m" "32G"
 
-    "-drive" "if=pflash,format=raw,readonly=on,file=${ovmf}"
-    "-drive" "if=pflash,format=raw,file=${asset_dir}/$(basename ${ovmf})"
+    "-bios" "${ovmf}"
     "-boot" "menu=on"
 )
 
@@ -115,7 +113,7 @@ qemu_args+=(
 
 # disk
 qemu_args+=(
-    "-drive" "file=${asset_dir}/win10.raw,if=virtio,media=disk,cache=unsafe,format=raw"
+    "-drive" "file=/mnt/sdd/vm/win10.raw,if=virtio,media=disk,cache=unsafe,format=raw"
 )
 
 systemd-inhibit --what=sleep --mode=block sleep infinity &
