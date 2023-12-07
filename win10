@@ -113,7 +113,7 @@ qemu_args+=(
 
 # disk
 qemu_args+=(
-    "-drive" "file=/mnt/sdd/vm/win10.raw,if=virtio,media=disk,cache=unsafe,format=raw"
+    "-drive" "file=/dev/nvme1n1p2,if=virtio,media=disk,cache=unsafe,format=raw"
 )
 
 systemd-inhibit --what=sleep --mode=block sleep infinity &
