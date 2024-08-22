@@ -1,123 +1,92 @@
 #!/bin/bash
-set -xe
+set -e
 
-err() {
-    echo "$@"
-    exit 1
+__func_defered=()
+defer() {
+    __func_defered+=("$*")
 }
-
-do_run() {
-    if ! eval "$@"; then
-        err "WARNING: command failed \"$*\""
-    fi
-}
-
-post_hooks=()
-atexit() {
-    for ((i = ${#post_hooks[@]} - 1; i >= 0; i--)) {
-        do_run "${post_hooks[i]}"
-    }
-}
-trap atexit EXIT
-run_atexit() {
-    post_hooks+=("$*")
-}
-
-if [[ $UID != 0 ]]; then
-    exec sudo "$0" "$@"
-fi
-
-if [[ $PPID != 1 ]]; then
-    mkdir -p log
-    exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$PWD/$0" "$@"
-fi
-
-if systemctl is-active --quiet display-manager.service; then
-    systemctl stop display-manager.service
-    while systemctl is-active --quiet display-manager.service; do
-        sleep 1
+do_defer() {
+    for ((i=${#__func_defered[@]}-1;i>=0;i--)); do
+        if ! eval "${__func_defered[i]}"; then
+            echo "eval cmd failed, cmd: \"${__func_defered[i]}\"" >&2
+        fi
     done
-    run_atexit "systemctl start display-manager.service"
-fi
+}
+trap do_defer EXIT
 
-for vtc in /sys/class/vtconsole/vtcon*; do
-    echo 0 > "$vtc/bind"
-    run_atexit "echo 1 > $vtc/bind"
-done
+main() {
+    if [ $UID != 0 ]; then
+        exec sudo "$0" "$@"
+    fi
+    if [ $PPID != 1 ]; then
+        # install: yay -S --noconfirm daemonize
+        mkdir -p log
+        exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$0" "$@"
+    fi
 
-# echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
-# run_atexit "echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/bind"
+    if systemctl is-active --quiet display-manager.service; then
+        systemctl stop display-manager.service
+        while systemctl is-active --quiet display-manager.service; do
+            sleep 1
+        done
+        defer "systemctl start display-manager.service"
+    fi
 
-asset_dir="$PWD/assets"
-ovmf="/usr/share/edk2/x64/OVMF_CODE.fd"
+    local qemu_options=()
+    qemu_options+=("-nodefaults" "-nographic" "-vga" "none")
 
-# basic options
-qemu_args=(
-    "-nodefaults"
-    "-nographic"
-    "-vga" "none"
+    qemu_options+=("-enable-kvm")
+    qemu_options+=("-cpu" "host,kvm=off")
+    qemu_options+=("-smp" "cores=32")
+    qemu_options+=("-m" "32G")
+    qemu_options+=("-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/edk2-ovmf/x64/OVMF_CODE.fd")
 
-    "-machine" "pc-q35-7.1,accel=kvm"
-    "-cpu" "host"
-    "-smp" "32"
-    "-m" "32G"
+    # gpu passthrough
+    virsh nodedev-detach pci_0000_01_00_0
+    defer "virsh nodedev-reattach pci_0000_01_00_0"
+    virsh nodedev-detach pci_0000_01_00_1
+    defer "virsh nodedev-reattach pci_0000_01_00_1"
+    qemu_options+=(
+        "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=${PWD}/assets/Gigabyte.RTX3090.24576.210315_3.rom"
+        "-device" "vfio-pci,host=01:00.1"
+    )
 
-    "-bios" "${ovmf}"
-    "-boot" "menu=on"
-)
+    # usb controller passthrough
+    virsh nodedev-detach pci_0000_69_00_0
+    defer "virsh nodedev-reattach pci_0000_69_00_0"
+    qemu_options+=("-device" "vfio-pci,host=69:00.0")
 
-# anti detection
-qemu_args+=(
-    "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,hpet=off,acpi=on"
-    "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
+    # nic
+    qemu_options+=("-nic" "user,model=virtio-net-pci")
 
-    "-smbios" 'type=0,vendor=American Megatrends Inc.,version=0309,date=08/16/2021,release=5.17'
-    "-smbios" 'type=1,manufacturer=System manufacturer,product=System Product Name,version=System Version,serial=System Serial Number,sku=SKU,family=To be filled by O.E.M.'
-    "-smbios" 'type=2,manufacturer=ASUSTeK COMPUTER INC.,product=ROG STRIX X570-E GAMING WIFI II,version=Rev X.0x,serial=210890780700315,asset=Default string,location=Default string'
-    "-smbios" 'type=3,manufacturer=Default string,version=Default string,serial=Default string,asset=Default string,sku=Default string'
-    "-smbios" 'type=11,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string'
+    systemd-inhibit --what=sleep --mode=block sleep infinity &
+    defer "kill $!"
 
-    "-global" "kvm-pit.lost_tick_policy=delay"
-    "-global" "ICH9-LPC.disable_s3=1"
-    "-global" "ICH9-LPC.disable_s4=1"
-    "-global" "ICH9-LPC.noreboot=off"
+    # anti detection
+    qemu_options+=(
+        "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,hpet=off,acpi=on"
+        "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
 
-    "-sandbox" "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
-)
+        "-smbios" 'type=0,vendor=American Megatrends Inc.,version=0309,date=08/16/2021,release=5.17'
+        "-smbios" 'type=1,manufacturer=System manufacturer,product=System Product Name,version=System Version,serial=System Serial Number,sku=SKU,family=To be filled by O.E.M.'
+        "-smbios" 'type=2,manufacturer=ASUSTeK COMPUTER INC.,product=ROG STRIX X570-E GAMING WIFI II,version=Rev X.0x,serial=210890780700315,asset=Default string,location=Default string'
+        "-smbios" 'type=3,manufacturer=Default string,version=Default string,serial=Default string,asset=Default string,sku=Default string'
+        "-smbios" 'type=11,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string,value=Default string'
 
-# gpu passthrough
-virsh nodedev-detach pci_0000_01_00_0
-run_atexit "virsh nodedev-reattach pci_0000_01_00_0"
-virsh nodedev-detach pci_0000_01_00_1
-run_atexit "virsh nodedev-reattach pci_0000_01_00_1"
+        "-global" "kvm-pit.lost_tick_policy=delay"
+        "-global" "ICH9-LPC.disable_s3=1"
+        "-global" "ICH9-LPC.disable_s4=1"
+        "-global" "ICH9-LPC.noreboot=off"
 
-qemu_args+=(
-    "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=${asset_dir}/Gigabyte.RTX3090.24576.210315_3.rom"
-    "-device" "vfio-pci,host=01:00.1"
-)
+        "-sandbox" "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
+    )
 
-# usb passthrough
-qemu_args+=(
-    "-device" "qemu-xhci"
-    "-device" "usb-host,vendorid=0x05ac,productid=0x024f"   # keyboard
-    "-device" "usb-host,vendorid=0x046d,productid=0xc53f"   # mouse
-    "-device" "usb-host,vendorid=0x045e,productid=0x028e"   # xbox360
-    "-device" "usb-host,vendorid=0x0bda,productid=0x8771"   # bluetooth
-)
+    qemu-system-x86_64 "${qemu_options[@]}" "$@"
+}
 
-# network setup
-qemu_args+=(
-    # "-nic" "user,model=virtio-net-pci"
-    "-nic" "user,model=e1000,mac=52:54:98:76:54:32"
-)
+main "$@"
 
-# disk
-qemu_args+=(
-    "-drive" "file=/dev/nvme1n1p2,if=virtio,media=disk,cache=unsafe,format=raw"
-)
-
-systemd-inhibit --what=sleep --mode=block sleep infinity &
-run_atexit "kill $!"
-
-qemu-system-x86_64 "${qemu_args[@]}" "$@"
-
+# # disk
+# qemu_args+=(
+#     "-drive" "file=/dev/nvme1n1p2,if=virtio,media=disk,cache=unsafe,format=raw"
+# )
