@@ -21,7 +21,7 @@ main() {
     if [ $PPID != 1 ]; then
         # install: yay -S --noconfirm daemonize
         mkdir -p log
-        exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$0" "$@"
+        exec daemonize -c "$PWD" -v -o log/out.log -e log/err.log "$(realpath $0)" "$@"
     fi
 
     if systemctl is-active --quiet display-manager.service; then
