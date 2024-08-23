@@ -57,7 +57,7 @@ main() {
     qemu_options+=("-device" "vfio-pci,host=69:00.0")
 
     # nic
-    qemu_options+=("-nic" "user,model=virtio-net-pci")
+    qemu_options+=("-nic" "user")
 
     systemd-inhibit --what=sleep --mode=block sleep infinity &
     defer "kill $!"
