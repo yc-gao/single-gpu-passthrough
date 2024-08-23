@@ -88,5 +88,5 @@ main "$@"
 
 # # disk
 # qemu_args+=(
-#     "-drive" "file=/dev/nvme1n1p2,if=virtio,media=disk,cache=unsafe,format=raw"
+#     "-drive" "file=/dev/nvme1n1p1,if=virtio,media=disk,cache=unsafe,format=raw"
 # )
