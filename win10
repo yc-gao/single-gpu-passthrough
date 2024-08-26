@@ -88,6 +88,6 @@ main "$@"
 
 # # disk
 # qemu_args+=(
-#     "-drive" "file=$(losetup -o 1GB -f --show /dev/nvme1n1),if=virtio,media=disk,cache=unsafe,format=raw"
+#     "-drive" "file=$(losetup -o 1GiB -f --show /dev/nvme1n1),if=virtio,media=disk,cache=unsafe,format=raw"
 #     "-drive" "file=/dev/loop0,if=virtio,media=disk,cache=unsafe,format=raw"
 # )
