@@ -1,5 +1,5 @@
 ```shell
-pamcan -S --noconfirm edk2-ovmf virt-manager qemu-full
+sudo pacman -S --noconfirm edk2-ovmf libvirt qemu-full
 yay -S --noconfirm daemonize
 ```
 
