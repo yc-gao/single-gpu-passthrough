@@ -70,35 +70,39 @@ do_nic_setup() {
     opts_qemu+=("-nic" "user")
 }
 
+do_pci_passthrough() {
+    local pci_prefix="/sys/bus/pci/devices"
+    local pci_ids=("$@")
+
+    for pci_id in "${pci_ids[@]}"; do
+        local driver="$(realpath "${pci_prefix}/${pci_id}/driver")"
+        echo "${pci_id}" >"${driver}/unbind"
+        defer "echo ${pci_id} >${driver}/bind"
+    done
+}
+
 do_gpu_passthrough() {
-    virsh nodedev-detach pci_0000_01_00_0
-    defer "virsh nodedev-reattach pci_0000_01_00_0"
-    virsh nodedev-detach pci_0000_01_00_1
-    defer "virsh nodedev-reattach pci_0000_01_00_1"
+    local pci_ids=("01:00.0" "01:00.1")
+    do_pci_passthrough "${pci_ids[@]}"
 
     opts_qemu+=(
-        "-device" "vfio-pci,host=01:00.0,x-vga=on,multifunction=on,romfile=${opt_rom}"
-        "-device" "vfio-pci,host=01:00.1"
+        "-device" "vfio-pci,host=${pci_ids[0]},x-vga=on,multifunction=on,romfile=${opt_rom}"
+        "-device" "vfio-pci,host=${pci_ids[1]}"
     )
 }
 
 do_usb_passthrough() {
-    virsh nodedev-detach pci_0000_69_00_0
-    defer "virsh nodedev-reattach pci_0000_69_00_0"
+    local pci_ids=("69:00.0")
+    do_pci_passthrough "${pci_ids[@]}"
 
     opts_qemu+=(
-        "-device" "vfio-pci,host=69:00.0"
+        "-device" "vfio-pci,host=${pci_ids[0]}"
     )
 }
 
 main() {
     [ -n "${opt_edk2}" ] \
         && opts_qemu+=("-drive" "if=pflash,format=raw,readonly=on,file=${opt_edk2}")
-
-    do_anti_detection
-    do_nic_setup
-    do_gpu_passthrough
-    do_usb_passthrough
 
     if systemctl is-active --quiet display-manager.service; then
         systemctl stop display-manager.service
@@ -110,6 +114,12 @@ main() {
 
     systemd-inhibit --what=sleep --mode=block sleep infinity &
     defer "kill $!"
+
+    do_anti_detection
+    do_nic_setup
+
+    do_gpu_passthrough
+    do_usb_passthrough
 
     qemu-system-x86_64 "${opts_qemu[@]}" "$@"
 }
