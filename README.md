@@ -22,7 +22,7 @@ unix_sock_rw_perms = "0770"
 ```
 
 ```shell
-systemctl enale libvirtd.service
+sudo systemctl enable libvirtd.service
 ```
 
 # qemu commands
