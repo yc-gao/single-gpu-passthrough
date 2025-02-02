@@ -19,8 +19,8 @@ qemu-system-x86_64 \
 sudo daemonize \
     -v \
     -c $PWD \
-    -o log/out.log \
-    -e log/err.log \
-    ./win10 \
+    -o $PWD/log/out.log \
+    -e $PWD/log/err.log \
+    $PWD/win10 \
     -drive file=/dev/loop0,if=virtio,media=disk,format=raw
 ```
