@@ -69,19 +69,12 @@ do_anti_detection() {
 }
 
 do_pci_passthrough() {
-    local pci_prefix="/sys/bus/pci/devices"
     local pci_ids=("$@")
 
-    modprobe -i vfio-pci
-    local vfio_prefix="/sys/bus/pci/drivers/vfio-pci"
-
     for pci_id in "${pci_ids[@]}"; do
-        local driver="$(realpath "${pci_prefix}/${pci_id}/driver")"
-        echo "${pci_id}" >"${driver}/unbind"
-        defer "echo ${pci_id} >${driver}/bind"
-
-        echo "${pci_id}" >"${vfio_prefix}/bind"
-        defer "echo ${pci_id} >${vfio_prefix}/unbind"
+        local virsh_id="pci_0000_$(echo ${pci_id} | tr ':.' '_')"
+        virsh nodedev-detach "${virsh_id}"
+        defer "virsh nodedev-reattach ${virsh_id}"
     done
 }
 
