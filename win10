@@ -35,7 +35,8 @@ defer() {
 opt_edk2="/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd"
 opt_rom="./assets/Gigabyte.RTX3090.24576.210315_3.rom"
 
-opts_qemu=(
+opt_qemu="qemu-system-x86_64"
+qemu_opts=(
     "-nodefaults"
     "-vga" "none"
     "-nographic"
@@ -49,7 +50,7 @@ opts_qemu=(
 )
 
 do_anti_detection() {
-    opts_qemu+=(
+    qemu_opts+=(
         "-machine" "pc-q35-7.1,accel=kvm,usb=off,vmport=off,kernel_irqchip=on,dump-guest-core=off,hpet=off,acpi=on"
         "-cpu" "host,migratable=on,topoext=on,hypervisor=off,hv-time=on,hv-relaxed=on,hv-vapic=on,hv-spinlocks=0x1fff,hv-vendor-id=123456789ab,kvm=off,kvm-hint-dedicated=on"
 
@@ -82,7 +83,7 @@ do_gpu_passthrough() {
     local pci_ids=("01:00.0" "01:00.1")
     do_pci_passthrough "${pci_ids[@]}"
 
-    opts_qemu+=(
+    qemu_opts+=(
         "-device" "vfio-pci,host=${pci_ids[0]},x-vga=on,multifunction=on,romfile=${opt_rom}"
         "-device" "vfio-pci,host=${pci_ids[1]}"
     )
@@ -92,15 +93,12 @@ do_usb_passthrough() {
     local pci_ids=("69:00.0")
     do_pci_passthrough "${pci_ids[@]}"
 
-    opts_qemu+=(
+    qemu_opts+=(
         "-device" "vfio-pci,host=${pci_ids[0]}"
     )
 }
 
-main() {
-    [ -n "${opt_edk2}" ] \
-        && opts_qemu+=("-drive" "if=pflash,format=raw,readonly=on,file=${opt_edk2}")
-
+do_main() {
     if systemctl is-active --quiet display-manager.service; then
         systemctl stop display-manager.service
         while systemctl is-active --quiet display-manager.service; do
@@ -117,7 +115,25 @@ main() {
     do_gpu_passthrough
     do_usb_passthrough
 
-    qemu-system-x86_64 "${opts_qemu[@]}" "$@"
+    if [[ -n "${opt_edk2}" ]]; then
+        qemu_opts+=("-drive" "if=pflash,format=raw,readonly=on,file=${opt_edk2}")
+    fi
+    ${opt_qemu} "${qemu_opts[@]}" "$@"
+
+}
+
+main() {
+    while (($#)); do
+        case "$1" in
+            --qemu)
+                opt_qemu="$2"
+                shift 2
+            *)
+                break
+                ;;
+        esac
+    done
+    do_main "$@"
 }
 
 main "$@"

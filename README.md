@@ -1,3 +1,10 @@
+# isolate cpus
+
+```
+# /boot/grub/grub.cfg
+isolcpus=1-31 nohz_full=1-31
+```
+
 # nvidia config
 ```
 # /etc/modprobe.d/nvidia.conf
@@ -28,7 +35,9 @@ sudo systemctl enable libvirtd.service
 # qemu commands
 
 ```shell
-qemu-system-x86_64 \
+chrt -r 1 \
+    taskset -c 1-31 \
+    qemu-system-x86_64 \
     -machine q35,accel=kvm \
     -cpu host \
     -smp cores=32 \
@@ -47,5 +56,7 @@ sudo daemonize \
     -o $PWD/log/out.log \
     -e $PWD/log/err.log \
     $PWD/win10 \
+    --qemu "chrt -r 1 taskset -c 1-31 qemu-system-x86_64" \
+    -smp cores=31 \
     -drive file=win10.img,if=virtio,media=disk,format=raw
 ```
