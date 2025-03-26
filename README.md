@@ -2,7 +2,7 @@
 
 ```
 # /boot/grub/grub.cfg
-isolcpus=1-31 nohz_full=1-31 hugepagesz=1G hugepages=50
+isolcpus=8-31 nohz_full=8-31 hugepagesz=1G hugepages=40
 ```
 
 # nvidia config
@@ -36,12 +36,12 @@ sudo systemctl enable libvirtd.service
 
 ```shell
 chrt -r 1 \
-    taskset -c 1-31 \
+    taskset -c 8-31 \
     qemu-system-x86_64 \
     -machine q35,accel=kvm \
     -cpu host \
-    -smp cores=31 \
-    -m 48G \
+    -smp cores=24 \
+    -m 32G \
     -nic user \
     -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
     -drive file=win10.iso,media=cdrom \
@@ -56,10 +56,9 @@ sudo daemonize \
     -o $PWD/out.log \
     -e $PWD/err.log \
     $PWD/win10 \
-    --qemu "chrt -r 1 taskset -c 1-31 qemu-system-x86_64" \
-    -smp cores=31 \
-    -mem-path /dev/hugepages \
-    -mem-prealloc \
+    --qemu "chrt -r 1 taskset -c 8-31 qemu-system-x86_64" \
+    -smp cores=24 \
+    -m 32G \
     -nic user \
     -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
     -drive file=win10.img,if=virtio,media=disk,format=raw
