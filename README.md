@@ -60,8 +60,8 @@ chrt -r 1 \
 sudo daemonize \
     -v \
     -c $PWD \
-    -o $PWD/log/out.log \
-    -e $PWD/log/err.log \
+    -o $PWD/out.log \
+    -e $PWD/err.log \
     $PWD/win10 \
     --qemu "chrt -r 1 taskset -c 1-31 qemu-system-x86_64" \
     -smp cores=31 \
