@@ -44,8 +44,6 @@ qemu_opts=(
     "-cpu" "host"
     "-smp" "cores=32"
     "-m" "48G"
-
-    "-nic" "user"
 )
 
 do_anti_detection() {
