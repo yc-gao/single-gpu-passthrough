@@ -2,7 +2,7 @@
 
 ```
 # /boot/grub/grub.cfg
-isolcpus=8-31 nohz_full=8-31 hugepagesz=1G hugepages=40
+isolcpus=8-31 nohz_full=8-31 default_hugepagesz=1G hugepagesz=1G hugepages=40
 ```
 
 # nvidia config
@@ -42,6 +42,8 @@ chrt -r 1 \
     -cpu host \
     -smp cores=24 \
     -m 32G \
+    -mem-path /dev/hugepages \
+    -mem-prealloc \
     -nic user \
     -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
     -drive file=win10.iso,media=cdrom \
@@ -59,6 +61,8 @@ sudo daemonize \
     --qemu "chrt -r 1 taskset -c 8-31 qemu-system-x86_64" \
     -smp cores=24 \
     -m 32G \
+    -mem-path /dev/hugepages \
+    -mem-prealloc \
     -nic user \
     -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
     -drive file=win10.img,if=virtio,media=disk,format=raw
