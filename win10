@@ -32,7 +32,6 @@ defer() {
     __func_defered+=("$*")
 }
 
-opt_edk2="/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd"
 opt_rom="./assets/Gigabyte.RTX3090.24576.210315_3.rom"
 
 opt_qemu="qemu-system-x86_64"
@@ -115,9 +114,6 @@ do_main() {
     do_gpu_passthrough
     do_usb_passthrough
 
-    if [[ -n "${opt_edk2}" ]]; then
-        qemu_opts+=("-drive" "if=pflash,format=raw,readonly=on,file=${opt_edk2}")
-    fi
     ${opt_qemu} "${qemu_opts[@]}" "$@"
 
 }
