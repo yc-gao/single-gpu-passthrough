@@ -5,6 +5,13 @@
 isolcpus=1-31 nohz_full=1-31
 ```
 
+# Huage Page
+
+```
+# /etc/sysctl.d/10-kvm.conf
+vm.nr_hugepages = 24GB * 1024 / 2MB
+```
+
 # nvidia config
 ```
 # /etc/modprobe.d/nvidia.conf
@@ -58,5 +65,6 @@ sudo daemonize \
     $PWD/win10 \
     --qemu "chrt -r 1 taskset -c 1-31 qemu-system-x86_64" \
     -smp cores=31 \
+    -mem-prealloc \
     -drive file=win10.img,if=virtio,media=disk,format=raw
 ```
