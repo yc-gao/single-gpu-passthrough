@@ -65,6 +65,7 @@ sudo daemonize \
     $PWD/win10 \
     --qemu "chrt -r 1 taskset -c 1-31 qemu-system-x86_64" \
     -smp cores=31 \
+    -mem-path /dev/hugepages \
     -mem-prealloc \
     -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
     -drive file=win10.img,if=virtio,media=disk,format=raw
