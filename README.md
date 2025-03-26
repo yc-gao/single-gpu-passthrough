@@ -1,15 +1,8 @@
-# isolate cpus
+# isolate cpus & Huge Pages
 
 ```
 # /boot/grub/grub.cfg
-isolcpus=1-31 nohz_full=1-31
-```
-
-# Huage Page
-
-```
-# /etc/sysctl.d/10-kvm.conf
-vm.nr_hugepages = 24GB * 1024 / 2MB
+isolcpus=1-31 nohz_full=1-31 hugepagesz=1G hugepages=50
 ```
 
 # nvidia config
