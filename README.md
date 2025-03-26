@@ -35,20 +35,20 @@ sudo systemctl enable libvirtd.service
 # qemu commands
 
 ```shell
-chrt -r 1 \
+sudo chrt -r 1 \
     taskset -c 8-31 \
     qemu-system-x86_64 \
-    -machine q35,accel=kvm \
-    -cpu host \
-    -smp cores=24 \
-    -m 32G \
-    -mem-path /dev/hugepages \
-    -mem-prealloc \
-    -nic user \
-    -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
-    -drive file=win10.iso,media=cdrom \
-    -drive file=virtio.iso,media=cdrom \
-    -drive file=win10.img,if=virtio,media=disk,format=raw
+        -machine q35,accel=kvm \
+        -cpu host \
+        -smp cores=24 \
+        -m 32G \
+        -mem-path /dev/hugepages \
+        -mem-prealloc \
+        -nic user \
+        -drive file=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd,if=pflash,format=raw,readonly=on \
+        -drive file=win10.iso,media=cdrom \
+        -drive file=virtio.iso,media=cdrom \
+        -drive file=win10.img,if=virtio,media=disk,format=raw
 ```
 
 ```shell
