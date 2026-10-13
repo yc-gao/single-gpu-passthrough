@@ -64,6 +64,7 @@ do_anti_detection() {
     )
 }
 
+# https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Ensuring_that_the_groups_are_valid
 do_pci_passthrough() {
     local pci_ids=("$@")
 
@@ -84,6 +85,7 @@ do_gpu_passthrough() {
     )
 }
 
+# https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#USB_controller
 do_usb_passthrough() {
     local pci_ids=("69:00.0")
     do_pci_passthrough "${pci_ids[@]}"
